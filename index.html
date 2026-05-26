@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ระบบคลังยา รพ.สต.หนองสองห้อง</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<img id="floating-img-element" style="display:none; position:fixed; z-index:99; pointer-events:none; opacity:0.85; max-width:140px; max-height:90px; object-fit:contain; filter:drop-shadow(2px 4px 6px rgba(0,0,0,0.2));" src="" />
+
+<div id="loading-screen">
+  <div style="text-align:center">
+    <svg class="logo-svg" style="width:80px;height:80px;margin:0 auto 16px" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="45" fill="#fff" opacity=".15"/>
+      <rect x="40" y="20" width="20" height="60" rx="6" fill="#fff"/>
+      <rect x="20" y="40" width="60" height="20" rx="6" fill="#fff"/>
+      <circle cx="50" cy="50" r="8" fill="#4facfe"/>
+    </svg>
+    <div class="text-xl font-bold mb-2">ระบบคลังยา รพ.สต.</div>
+    <div class="text-sm opacity-80">หนองสองห้อง · บ้านแพ้ว · สมุทรสาคร</div>
+    <div class="spinner mt-6 mx-auto"></div>
+  </div>
+</div>
+
+<div id="overlay" onclick="closeSidebarMobile()"></div>
+<div id="toast-container"></div>
+
+<div id="lot-modal" style="display:none; z-index:90;" class="modal-bg">
+  <div class="modal-box text-center relative max-w-sm">
+    <div class="font-bold text-lg mb-2 text-blue-600">เลือก Lot ที่ต้องการเบิก</div>
+    <div class="text-xs text-gray-500 mb-4 bg-yellow-50 p-2 rounded border border-yellow-200">
+      <i class="fas fa-info-circle text-yellow-500 mr-1"></i>ระบบพบว่ามีสต๊อกหลาย Lot แนะนำให้เบิก <b>Lot ที่ใกล้หมดอายุก่อน (FEFO)</b>
+    </div>
+    <div id="lot-list" class="space-y-2 max-h-60 overflow-y-auto text-left"></div>
+    <button class="neu-btn w-full py-2 mt-4 text-gray-600" onclick="closeLotModal()">ยกเลิก / ป้อน Lot เอง</button>
+  </div>
+</div>
+
+<div id="login-page" style="display:none;min-height:100vh;background:linear-gradient(135deg,#1e3a5f 0%,#4facfe 100%);display:flex;align-items:center;justify-content:center;">
+  <div class="neu" style="width:380px;max-width:92vw;padding:36px 32px;text-align:center;">
+    <div style="width:64px;height:64px;margin:0 auto 12px;position:relative;">
+      <img id="login-store-logo-img" style="display:none;width:64px;height:64px;border-radius:14px;object-fit:cover;background:#fff;border:2px solid #4facfe;"/>
+      <svg id="login-store-logo-svg" viewBox="0 0 100 100" style="width:64px;height:64px;">
+        <circle cx="50" cy="50" r="45" fill="url(#g1)"/>
+        <defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4facfe"/><stop offset="100%" stop-color="#00f2fe"/></linearGradient></defs>
+        <rect x="40" y="22" width="20" height="56" rx="5" fill="#fff"/>
+        <rect x="22" y="40" width="56" height="20" rx="5" fill="#fff"/>
+        <circle cx="50" cy="50" r="7" fill="#4facfe"/>
+      </svg>
+    </div>
+    <div class="text-xl font-bold text-gray-800 mb-1" id="login-store-name">ระบบคลังยา รพ.สต.</div>
+    <div class="text-sm text-gray-500 mb-6" id="login-store-addr">ตำบลหนองสองห้อง อ.บ้านแพ้ว จ.สมุทรสาคร</div>
+    <div class="mb-4 text-left">
+      <label class="form-label"><i class="fas fa-user mr-1"></i> ชื่อผู้ใช้</label>
+      <input id="inp-username" class="form-input" type="text" placeholder="ชื่อผู้ใช้" autocomplete="username"/>
+    </div>
+    <div class="mb-6 text-left">
+      <label class="form-label"><i class="fas fa-lock mr-1"></i> รหัสผ่าน</label>
+      <input id="inp-password" class="form-input" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="btn-primary w-full py-3 text-base font-semibold" onclick="doLogin()">
+      <i class="fas fa-sign-in-alt mr-2"></i>เข้าสู่ระบบ
+    </button>
+    <div id="login-credit" class="text-xs text-gray-400 mt-5">Credit By Ritwet_hospital_DrugStock</div>
+  </div>
+</div>
+
+<div id="app-layout" style="display:none;min-height:100vh;">
+
+  <nav id="sidebar" class="flex flex-col">
+    <div class="flex items-center gap-3 px-4 py-5 border-b border-white/10">
+      <div style="width:38px;height:38px;flex-shrink:0;position:relative;">
+        <img id="sb-store-logo-img" style="display:none;width:38px;height:38px;border-radius:10px;object-fit:cover;background:#fff;"/>
+        <svg id="sb-store-logo-svg" viewBox="0 0 100 100" style="width:38px;height:38px;">
+          <circle cx="50" cy="50" r="45" fill="url(#sg)"/>
+          <defs><linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4facfe"/><stop offset="100%" stop-color="#00f2fe"/></linearGradient></defs>
+          <rect x="40" y="22" width="20" height="56" rx="5" fill="#fff"/>
+          <rect x="22" y="40" width="56" height="20" rx="5" fill="#fff"/>
+          <circle cx="50" cy="50" r="7" fill="#4facfe"/>
+        </svg>
+      </div>
+      <div class="sidebar-logo-text text-white">
+        <div class="font-bold text-sm leading-tight" id="sb-store-name">คลังยา รพ.สต.</div>
+        <div class="text-xs opacity-60" id="sb-store-addr">หนองสองห้อง</div>
+      </div>
+    </div>
+    <div id="store-info-sidebar" class="px-4 py-3 border-b border-white/10">
+      <div class="flex items-center gap-3">
+        <div id="sb-user-avatar" class="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0"></div>
+        <div>
+          <div id="sb-user-name" class="text-white text-sm font-semibold">ผู้ใช้งาน</div>
+          <div id="sb-user-role" class="text-xs text-blue-300">user</div>
+        </div>
+      </div>
+    </div>
+    <div class="flex-1 py-3 overflow-y-auto" id="nav-links">
+      <div class="nav-item px-4 py-2 text-xs font-semibold text-blue-300 uppercase tracking-wider sidebar-label">เมนูหลัก</div>
+      <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition rounded-lg mx-2 mb-1" data-page="dashboard">
+        <i class="fas fa-chart-pie w-5 text-center"></i><span class="sidebar-label">Dashboard</span>
+      </a>
+      <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition rounded-lg mx-2 mb-1" data-page="inventory">
+        <i class="fas fa-pills w-5 text-center"></i><span class="sidebar-label">คลังยา</span>
+      </a>
+      <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition rounded-lg mx-2 mb-1" data-page="receive">
+        <i class="fas fa-truck-loading w-5 text-center"></i><span class="sidebar-label">รับยาเข้าคลัง</span>
+      </a>
+      <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition rounded-lg mx-2 mb-1" data-page="dispense">
+        <i class="fas fa-hand-holding-medical w-5 text-center"></i><span class="sidebar-label">เบิกจ่ายยา</span>
+      </a>
+      <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition rounded-lg mx-2 mb-1" data-page="report">
+        <i class="fas fa-file-alt w-5 text-center"></i><span class="sidebar-label">รายงาน</span>
+      </a>
+      <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition rounded-lg mx-2 mb-1" data-page="forecast">
+        <i class="fas fa-calculator w-5 text-center"></i><span class="sidebar-label">คำนวณเบิกเดือนหน้า</span>
+      </a>
+      <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition rounded-lg mx-2 mb-1" data-page="manual">
+        <i class="fas fa-book-open w-5 text-center"></i><span class="sidebar-label">คู่มือการใช้งาน</span>
+      </a>
+      <div id="admin-nav" style="display:none">
+        <div class="nav-item px-4 py-2 text-xs font-semibold text-blue-300 uppercase tracking-wider sidebar-label mt-2">จัดการระบบ</div>
+        <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition rounded-lg mx-2 mb-1" data-page="users">
+          <i class="fas fa-users w-5 text-center"></i><span class="sidebar-label">จัดการผู้ใช้</span>
+        </a>
+        <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition rounded-lg mx-2 mb-1" data-page="settings">
+          <i class="fas fa-cog w-5 text-center"></i><span class="sidebar-label">ตั้งค่าระบบ</span>
+        </a>
+        <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition rounded-lg mx-2 mb-1" data-page="reset-stock">
+          <i class="fas fa-sync-alt w-5 text-center"></i><span class="sidebar-label">เริ่มต้นสต๊อกใหม่</span>
+        </a>
+      </div>
+    </div>
+    <div class="border-t border-white/10 px-4 py-3 flex items-center gap-3">
+      <a href="http://www.prunaihealth.com/dose/" target="_blank" class="flex items-center gap-2 text-white/70 hover:text-white text-sm transition">
+        <i class="fas fa-calculator w-5 text-center"></i><span class="sidebar-label">คำนวณยา</span>
+      </a>
+    </div>
+    <div class="px-4 pb-3">
+      <button class="btn-danger w-full py-2 text-sm" onclick="doLogout()">
+        <i class="fas fa-sign-out-alt mr-1"></i><span class="sidebar-label">ออกจากระบบ</span>
+      </button>
+    </div>
+  </nav>
+
+  <div id="main-content" style="margin-left:260px;transition:.3s;min-height:100vh;">
+    <div id="topbar" class="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 shadow-sm" style="background:var(--card);border-bottom:1px solid var(--border);">
+      <button class="neu-btn p-2 text-gray-600" onclick="toggleSidebar()" id="hamburger">
+        <i class="fas fa-bars"></i>
+      </button>
+      <div class="flex-1">
+        <h1 id="page-title" class="font-semibold text-base">Dashboard</h1>
+      </div>
+      <div class="relative hidden md:block">
+        <input id="global-search" class="form-input pl-9 py-2 text-sm" style="width:240px" placeholder="ค้นหายา (ไทย/อังกฤษ/รหัส)..." oninput="globalSearch(this.value)"/>
+        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+        <div id="search-dropdown" class="absolute top-full left-0 w-full bg-white rounded-xl shadow-xl mt-1 z-50 max-h-60 overflow-y-auto" style="display:none;border:1px solid var(--border)"></div>
+      </div>
+      <button class="neu-btn p-2 text-gray-600" onclick="refreshAll()" title="รีเฟรชข้อมูล">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+      <button class="neu-btn p-2 text-gray-600" onclick="toggleDark()" title="Dark Mode">
+        <i id="dark-icon" class="fas fa-moon"></i>
+      </button>
+      <div id="topbar-avatar" class="w-9 h-9 rounded-lg cursor-pointer overflow-hidden flex-shrink-0" onclick="showPage('settings')"></div>
+    </div>
+    
+    <div id="page-users" class="page-view" style="display:none">
+        <div class="flex gap-3 mb-4 no-print mt-4 px-4">
+          <button class="btn-primary px-4 py-2 text-sm" onclick="openSlidePanel('user','add')">
+            <i class="fas fa-plus mr-1"></i>เพิ่มผู้ใช้
+          </button>
+        </div>
+        <div class="neu p-0 overflow-hidden mx-4">
+          <div class="overflow-x-auto">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th><th>โปรไฟล์ / ชื่อผู้ใช้</th><th>ชื่อ-สกุล</th><th>สิทธิ์</th><th>เบอร์โทร</th><th>สถานะ</th><th class="no-print">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="users-tbody"><tr><td colspan="7" class="text-center py-6 text-gray-400">กำลังโหลด...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      
+      <div id="page-settings" class="page-view" style="display:none">
+        <div class="neu p-6 md:p-8 max-w-4xl mx-auto space-y-6 mt-4">
+          <h2 class="text-xl font-bold border-b pb-2"><i class="fas fa-cog mr-2"></i>ตั้งค่าระบบ</h2>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label class="form-label">ชื่อหน่วยงาน</label><input id="cfg-storeName" class="form-input"/></div>
+            <div><label class="form-label">ที่อยู่</label><input id="cfg-storeAddress" class="form-input"/></div>
+            <div><label class="form-label">เบอร์โทรศัพท์</label><input id="cfg-storePhone" class="form-input"/></div>
+            <div><label class="form-label">ข้อความส่วนท้าย (Footer)</label><input id="cfg-creditText" class="form-input"/></div>
+            <div class="md:col-span-2 mt-4"><h3 class="font-bold text-lg text-purple-600 border-b pb-2"><i class="fas fa-paint-brush mr-2"></i>ตกแต่งระบบ (UI & Animations)</h3></div>
+            <div class="md:col-span-2">
+               <label class="form-label text-purple-700 font-bold"><i class="fas fa-bullhorn mr-1"></i>ข้อความประกาศวิ่ง</label>
+               <input id="cfg-marqueeText" class="form-input" placeholder="เช่น ยินดีต้อนรับ... (เว้นว่างเพื่อปิด)"/>
+            </div>
+            <div class="md:col-span-2">
+               <label class="form-label text-purple-700 font-bold"><i class="fas fa-images mr-1"></i>ภาพประชาสัมพันธ์วิ่ง (ใส่ลิงก์รูปภาพ คั่นด้วยลูกน้ำ)</label>
+               <input id="cfg-marqueeImgs" class="form-input" placeholder="https://..., https://... (เว้นว่างเพื่อปิด)"/>
+            </div>
+            <div class="md:col-span-2 mb-4">
+               <label class="form-label text-purple-700 font-bold"><i class="fas fa-ghost mr-1"></i>ภาพลอยไปมาบนหน้าจอ</label>
+               <input id="cfg-floatingImg" class="form-input" placeholder="ใส่ลิงก์รูปภาพ (เว้นว่างเพื่อปิด)"/>
+            </div>
+            
+            <div class="md:col-span-2 p-4 bg-blue-50 rounded-xl border border-blue-200">
+              <label class="form-label font-bold text-blue-700"><i class="fas fa-image mr-1"></i>โลโก้หน่วยงาน (แสดงในหน้า Login และ Sidebar)</label>
+              <div class="flex items-center gap-3 mt-2">
+                <img id="cfg-storeLogo-prev" style="width:80px;height:80px;border-radius:12px;object-fit:contain;background:#fff;border:1px solid #e2e8f0;display:none;"/>
+                <input type="file" id="cfg-storeLogo-file" accept="image/*" class="form-input text-sm flex-1" onchange="previewImg(this,'cfg-storeLogo-prev')"/>
+              </div>
+              <input type="hidden" id="cfg-storeLogo"/>
+              <div class="text-xs text-blue-700 mt-1"><i class="fas fa-info-circle mr-1"></i>แนะนำรูปสี่เหลี่ยมจัตุรัส (ไม่จำเป็นต้องเป็น .png ก็ได้)</div>
+            </div>
+          </div>
+
+          <h3 class="font-bold text-lg text-blue-600 mt-6 border-b pb-2">ข้อมูลผู้ดูแลระบบ (Admin)</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label class="form-label">ชื่อผู้ดูแล</label><input id="cfg-adminName" class="form-input"/></div>
+            <div><label class="form-label">อีเมล</label><input id="cfg-adminEmail" class="form-input"/></div>
+            <div><label class="form-label">เบอร์โทร</label><input id="cfg-adminPhone" class="form-input"/></div>
+            <div><label class="form-label">รหัสผ่านยืนยันตัวตน Admin (ตั้งค่า/รีเซ็ตสต๊อก)</label><input id="cfg-adminPassword" class="form-input" type="password"/></div>
+          </div>
+
+          <h3 class="font-bold text-lg text-green-600 mt-6 border-b pb-2">ระบบ AI และการแจ้งเตือน</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label class="form-label">เตือนยาหมดอายุล่วงหน้า (วัน เช่น 7,14,30)</label><input id="cfg-notifyDays" class="form-input"/></div>
+            <div><label class="form-label">Gemini API Key (สำหรับระบบอ่านภาพ OCR)</label><input id="cfg-geminiApiKey" class="form-input" type="password"/></div>
+            
+            <div class="col-span-1 md:col-span-2 border-t mt-2 pt-4">
+              <label class="font-bold text-gray-700 flex items-center gap-2"><i class="fab fa-line text-green-500 text-xl"></i> Line Messaging API</label>
+            </div>
+            
+            <div class="col-span-1 md:col-span-2 bg-green-50 p-4 rounded-xl border border-green-200 mb-2">
+              <label class="form-label font-bold text-green-800"><i class="fas fa-robot mr-1"></i> ตัวเลือก Bot ที่บันทึกไว้</label>
+              <div class="flex flex-wrap gap-2 mt-2">
+                <select id="cfg-savedBots" class="form-input text-sm flex-1 min-w-[200px]"></select>
+                <button class="btn-info px-4 py-2 text-xs" onclick="loadBotProfile()"><i class="fas fa-download mr-1"></i> โหลดใช้</button>
+                <button class="btn-success px-4 py-2 text-xs" onclick="saveNewBotProfile()"><i class="fas fa-save mr-1"></i> บันทึกตัวเลือก</button>
+                <button class="btn-danger px-4 py-2 text-xs" onclick="deleteBotProfile()"><i class="fas fa-trash mr-1"></i> ลบ</button>
+              </div>
+              <div class="text-xs text-green-700 mt-2">
+                <i class="fas fa-info-circle mr-1"></i> <b>วิธีใช้:</b> กรอกข้อมูลด้านล่างให้ครบแล้วกด <b>"บันทึกตัวเลือก"</b> เพื่อเก็บไว้ <br>เมื่อต้องการสลับตัว ให้เลือกจากเมนูแล้วกด <b>"โหลดใช้"</b> -> <b>"ทดสอบ Token"</b> -> และกด <b>"บันทึกการตั้งค่าระบบ" (ด้านล่างสุด)</b>
+              </div>
+            </div>
+            <div><label class="form-label">Channel Access Token</label><input id="cfg-lineChannelAccessToken" class="form-input" type="password"/></div>
+            <div><label class="form-label">Channel Secret</label><input id="cfg-lineChannelSecret" class="form-input" type="password"/></div>
+            <div><label class="form-label">Admin ID (รับแจ้งเตือนส่วนตัว)</label><input id="cfg-lineAdminId" class="form-input"/></div>
+            <div><label class="form-label">Group/Chat ID (ห้องกลุ่ม รพ.สต.)</label><input id="cfg-lineChatId" class="form-input"/></div>
+            <div><label class="form-label">ชื่อ Line Bot (ตั้งเองได้)</label><input id="cfg-lineBotName" class="form-input" placeholder="พิมพ์ชื่อ Bot หรือกดทดสอบ Token เพื่อดึงชื่ออัตโนมัติ"/></div>
+            <div>
+              <label class="form-label mb-2">สถานะการเชื่อมต่อ Line</label>
+              <div id="line-status-badge" class="line-status disconnected"><i class="fas fa-circle mr-1" style="font-size:.5rem"></i>ยังไม่ทดสอบ</div>
+              <div class="flex gap-2 mt-2">
+                <button class="btn-info px-3 py-1 text-xs" onclick="testLineConn()"><i class="fas fa-sync mr-1"></i>ทดสอบ Token</button>
+                <button class="btn-success px-3 py-1 text-xs" onclick="sendLineTest()"><i class="fas fa-paper-plane mr-1"></i>ทดสอบส่งข้อความ</button>
+              </div>
+            </div>
+
+            <div class="col-span-1 md:col-span-2 border-t mt-2 pt-4">
+              <label class="font-bold text-gray-700 flex items-center gap-2"><i class="fab fa-telegram text-blue-500 text-xl"></i> Telegram API (สำรอง)</label>
+            </div>
+            <div><label class="form-label">Telegram Token</label><input id="cfg-telegramToken" class="form-input" type="password"/></div>
+            <div><label class="form-label">Telegram Chat ID</label><input id="cfg-telegramChatId" class="form-input"/></div>
+            <div><label class="form-label">ชื่อ Telegram Bot</label><input id="cfg-telegramBotName" class="form-input"/></div>
+            
+            <div class="col-span-1 md:col-span-2 border-t mt-2 pt-4">
+              <label class="font-bold text-gray-700 flex items-center gap-2"><i class="fas fa-bell text-orange-500 text-xl"></i> สวิตช์ควบคุมการแจ้งเตือน</label>
+            </div>
+            <div><label class="form-label">แจ้งเตือนไปที่ Admin</label><select id="cfg-notifyAdminActive" class="form-input"><option value="TRUE">เปิด</option><option value="FALSE">ปิด</option></select></div>
+            <div><label class="form-label">แจ้งเตือนเข้ากลุ่ม</label><select id="cfg-notifyGroupActive" class="form-input"><option value="TRUE">เปิด</option><option value="FALSE">ปิด</option></select></div>
+          </div>
+
+          <div class="pt-6 mt-4 border-t">
+            <button class="btn-primary w-full py-3 font-semibold" onclick="saveSettings()"><i class="fas fa-save mr-2"></i>บันทึกการตั้งค่าระบบ</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="page-reset-stock" class="page-view" style="display:none">
+        <div class="neu p-6 md:p-8 max-w-4xl mx-auto space-y-6 mt-4">
+          <h2 class="text-xl font-bold text-red-600 border-b pb-2"><i class="fas fa-sync-alt mr-2"></i>เริ่มต้นสต๊อกใหม่ (Reset Stock)</h2>
+          <div class="bg-red-50 p-4 rounded-xl text-red-700 text-sm">
+            <i class="fas fa-exclamation-triangle mr-2"></i> <strong>คำเตือน:</strong> การดำเนินการนี้จะลบประวัติการรับ-จ่ายยาทั้งหมด และเริ่มนับสต๊อกใหม่ ควรส่งออกรายงาน Excel เก็บไว้ก่อนทำรายการ
+          </div>
+
+          <div class="space-y-4 mt-6">
+            <h3 class="font-bold text-gray-800">ขั้นตอนที่ 1: เตรียมข้อมูลยอดยกมา</h3>
+            <div class="flex flex-wrap gap-3">
+              <button class="btn-info px-4 py-2 text-sm" onclick="document.getElementById('step1-done').style.display='block'; loadCurrentStockForReset();">
+                <i class="fas fa-download mr-1"></i> ดึงสต๊อกปัจจุบันเป็นยอดยกมา
+              </button>
+              <label class="btn-success px-4 py-2 text-sm cursor-pointer">
+                <i class="fas fa-upload mr-1"></i> นำเข้าไฟล์ CSV ยอดยกมา
+                <input type="file" accept=".csv" style="display:none" onchange="document.getElementById('step1-done').style.display='block'; importResetCSV(this)"/>
+              </label>
+            </div>
+            <div id="step1-done" class="text-green-600 text-sm font-semibold mt-2" style="display:none"><i class="fas fa-check-circle mr-1"></i> เตรียมข้อมูลยกมาเรียบร้อยแล้ว</div>
+            
+            <div id="reset-preview" style="display:none" class="mt-4">
+               <div class="overflow-x-auto border rounded-xl">
+                 <table class="data-table">
+                   <thead><tr><th>ชื่อยา</th><th>จำนวนยกมา (คลังใน)</th><th>หน่วย</th><th>ลบ</th></tr></thead>
+                   <tbody id="reset-preview-tbody"></tbody>
+                 </table>
+               </div>
+            </div>
+            
+            <h3 class="font-bold text-gray-800 mt-8 pt-4 border-t">ขั้นตอนที่ 2: ยืนยันการดำเนินการ</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div><label class="form-label">วันที่เริ่มต้นสต๊อกใหม่</label><input id="reset-date" type="date" class="form-input"/></div>
+              <div><label class="form-label">รหัสผ่าน Admin เพื่อยืนยัน</label><input id="reset-admin-pass" type="password" class="form-input" placeholder="ใส่รหัสผ่านผู้ดูแลระบบ"/></div>
+            </div>
+            
+            <button class="btn-danger w-full py-3 mt-4 font-bold" onclick="doResetStock()"><i class="fas fa-exclamation-triangle mr-2"></i>ยืนยันการลบประวัติและรีเซ็ตสต๊อก</button>
+          </div>
+        </div>
+      </div>
+
+    <div id="page-content" class="p-4 md:p-6">
+      <div id="dashboard-marquees" style="display:none;" class="mb-4">
+        <div id="marquee-container" style="display:none;" class="w-full bg-blue-50 text-blue-800 border border-blue-200 rounded-lg px-3 py-2 mb-3 shadow-sm flex items-center">
+            <i class="fas fa-bullhorn text-orange-500 mr-2 animate-pulse shrink-0"></i>
+            <div class="marquee-wrapper flex-1">
+                <div id="disp-marquee" class="marquee-content text-sm font-bold tracking-wide"></div>
+            </div>
+        </div>
+        <div id="img-marquee-container" style="display:none;" class="w-full bg-white p-3 rounded-xl border shadow-sm">
+            <div class="text-xs font-bold text-gray-500 mb-2 border-b pb-1"><i class="fas fa-images text-blue-400 mr-1"></i> ภาพกิจกรรม / ประชาสัมพันธ์</div>
+            <div class="img-marquee-wrapper py-1 overflow-hidden">
+                <div id="disp-img-marquee" class="img-marquee-content whitespace-nowrap flex items-center"></div>
+            </div>
+        </div>
+      </div>
+      <div id="page-dashboard" class="page-view" style="display:none">
+        <div class="print-header mb-4">
+          <div id="print-store-name" class="font-bold text-lg"></div>
+          <div id="print-store-addr" class="text-sm text-gray-600"></div>
+          <hr class="my-2"/>
+          <div class="font-semibold">รายงานสรุปคลังยา</div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+          <div class="stat-card-blue rounded-2xl p-4 text-white shadow-lg">
+            <div class="text-3xl font-bold" id="stat-sku">--</div>
+            <div class="text-xs opacity-90 mt-1"><i class="fas fa-pills mr-1"></i>รายการยาทั้งหมด (SKU)</div>
+          </div>
+          <div class="stat-card-pink rounded-2xl p-4 text-white shadow-lg">
+            <div class="text-3xl font-bold" id="stat-nearexp">--</div>
+            <div class="text-xs opacity-90 mt-1"><i class="fas fa-clock mr-1"></i>ใกล้หมดอายุ</div>
+          </div>
+          <div class="stat-card-orange rounded-2xl p-4 text-white shadow-lg">
+            <div class="text-3xl font-bold" id="stat-lowstock">--</div>
+            <div class="text-xs opacity-90 mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>สต๊อกต่ำ</div>
+          </div>
+          <div class="stat-card-green rounded-2xl p-4 text-white shadow-lg">
+            <div class="text-3xl font-bold" id="stat-in">--</div>
+            <div class="text-xs opacity-90 mt-1" id="lbl-stat-in"><i class="fas fa-arrow-down mr-1"></i>รับเข้าเดือนนี้</div>
+          </div>
+          <div class="stat-card-purple rounded-2xl p-4 text-white shadow-lg">
+            <div class="text-3xl font-bold" id="stat-out">--</div>
+            <div class="text-xs opacity-90 mt-1" id="lbl-stat-out"><i class="fas fa-arrow-up mr-1"></i>เบิกจ่ายเดือนนี้</div>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div class="neu p-4">
+            <div class="font-semibold mb-1 text-sm"><i class="fas fa-chart-bar mr-2 text-blue-400"></i>สต๊อกแยกหมวดหมู่</div>
+            <div class="text-xs text-gray-500 mb-3">💡 คลิกที่แท่งกราฟเพื่อกรองตารางด้านล่าง (คลิกซ้ำเพื่อคืนค่า)</div>
+            <div class="chart-wrap"><canvas id="chart-category"></canvas></div>
+          </div>
+          <div class="neu p-4">
+            <div class="font-semibold mb-1 text-sm"><i class="fas fa-chart-line mr-2 text-pink-400"></i>รับ-จ่าย 6 เดือนย้อนหลัง</div>
+            <div class="text-xs text-gray-500 mb-3">💡 คลิกจุดบนกราฟเพื่อดูยอดรับ-จ่ายของเดือนนั้น (คลิกซ้ำเพื่อคืนค่า)</div>
+            <div class="chart-wrap"><canvas id="chart-monthly"></canvas></div>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="neu p-4">
+            <div class="font-semibold mb-3 text-sm flex items-center justify-between">
+              <span><i class="fas fa-clock mr-2 text-red-400 pulse"></i>ยาใกล้หมดอายุ (30 วัน)</span>
+              <button class="btn-warning text-xs px-3 py-1 no-print" onclick="printSection('expiry-table')">
+                <i class="fas fa-print mr-1"></i>พิมพ์
+              </button>
+            </div>
+            <div id="expiry-table" class="overflow-x-auto">
+              <table class="data-table"><thead><tr><th>ชื่อยา</th><th>Lot</th><th>หมดอายุ</th><th>คลัง</th><th>คงเหลือ</th></tr></thead>
+              <tbody id="expiry-tbody"><tr><td colspan="5" class="text-center text-gray-400 py-4">กำลังโหลด...</td></tr></tbody></table>
+            </div>
+          </div>
+          <div class="neu p-4">
+            <div class="font-semibold mb-3 text-sm flex items-center justify-between">
+              <span><i class="fas fa-exclamation-triangle mr-2 text-orange-400 pulse"></i>สต๊อกต่ำกว่าขั้นต่ำ</span>
+              <button class="btn-warning text-xs px-3 py-1 no-print" onclick="showPage('forecast')">
+                <i class="fas fa-calculator mr-1"></i>คำนวณเบิก
+              </button>
+            </div>
+            <div id="lowstock-list" class="overflow-x-auto">
+              <table class="data-table"><thead><tr><th>ชื่อยา</th><th>สต๊อก (รวม)</th><th>ขั้นต่ำ</th></tr></thead>
+              <tbody id="lowstock-tbody"><tr><td colspan="3" class="text-center text-gray-400 py-4">กำลังโหลด...</td></tr></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="page-inventory" class="page-view" style="display:none">
+        <div class="flex flex-wrap gap-3 mb-4 no-print">
+          <input id="inv-search" class="form-input flex-1" style="min-width:180px" placeholder="ค้นหา ชื่อ/รหัส/หมวดหมู่..." oninput="filterInventory()"/>
+          <select id="inv-cat-filter" class="form-input" style="width:160px" onchange="filterInventory()">
+            <option value="">ทุกหมวดหมู่</option>
+            <option>ยา</option><option>เวชภัณฑ์ยา</option><option>วัคซีน</option><option>วัสดุการแพทย์</option>
+          </select>
+          <button class="btn-primary px-4 py-2 text-sm" onclick="openSlidePanel('medicine','add')">
+            <i class="fas fa-plus mr-1"></i>เพิ่มยา
+          </button>
+          <button class="btn-success px-4 py-2 text-sm" onclick="showPage('receive')">
+            <i class="fas fa-truck-loading mr-1"></i>รับยา
+          </button>
+        </div>
+        <div class="neu p-0 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="data-table" id="inv-table">
+              <thead><tr><th>รหัส</th><th>รูปภาพ</th><th>ชื่อยา (ไทย/อังกฤษ)</th><th>หมวดหมู่</th><th>คลังใน</th><th>คลังนอก</th><th>รวม</th><th>หน่วย</th><th>ราคา/หน่วย</th><th>ขั้นต่ำ</th><th class="no-print">จัดการ</th></tr></thead>
+              <tbody id="inv-tbody"><tr><td colspan="11" class="text-center py-6 text-gray-400">กำลังโหลด...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="page-receive" class="page-view" style="display:none">
+        <div class="flex gap-3 mb-4 flex-wrap no-print">
+          <button class="btn-primary px-4 py-2 text-sm" onclick="openSlidePanel('receive','add')">
+            <i class="fas fa-plus mr-1"></i>รับยาเข้าคลัง
+          </button>
+          <button class="btn-warning px-4 py-2 text-sm" onclick="exportReceiveTemplate()">
+            <i class="fas fa-download mr-1"></i>โหลด Template (Excel)
+          </button>
+          <label class="btn-success px-4 py-2 text-sm cursor-pointer"><i class="fas fa-upload mr-1"></i>นำเข้าจาก Excel
+            <input type="file" accept=".csv" style="display:none" onchange="importReceiveExcel(this)"/>
+          </label>
+          <button class="btn-info px-4 py-2 text-sm" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;" onclick="openOCRPanel()">
+            <i class="fas fa-camera mr-1"></i>อ่านจากภาพ (OCR)
+          </button>
+        </div>
+        <div class="flex gap-2 mb-4 flex-wrap no-print">
+          <input id="tx-date-from" type="month" class="form-input text-sm" style="width:150px"/>
+          <input id="tx-date-to"   type="month" class="form-input text-sm" style="width:150px"/>
+          <select id="rx-cat-filter" class="form-input text-sm" style="width:140px">
+            <option value="">ทุกหมวดหมู่</option>
+            <option>ยา</option><option>เวชภัณฑ์ยา</option><option>วัคซีน</option><option>วัสดุการแพทย์</option>
+          </select>
+          <button class="btn-primary px-3 py-2 text-sm" onclick="loadTransactions('receive')"><i class="fas fa-filter mr-1"></i>กรอง</button>
+          <button class="btn-warning px-3 py-2 text-sm no-print" onclick="printReport()"><i class="fas fa-print mr-1"></i>พิมพ์</button>
+          <button class="btn-success px-3 py-2 text-sm no-print" onclick="exportCSV('receive')"><i class="fas fa-file-csv mr-1"></i>CSV</button>
+          <button class="btn-success px-3 py-2 text-sm no-print" onclick="exportExcel('receive')"><i class="fas fa-file-excel mr-1"></i>Excel</button>
+        </div>
+        <div class="neu p-0 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="data-table">
+              <thead><tr><th><input type="checkbox" id="chk-all-rx" onchange="toggleCheckAll('rx')"/></th>
+                <th>วันที่</th><th>ชื่อยา</th><th>Lot</th><th>วันหมดอายุ</th>
+                <th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th>รวม</th><th>คลัง</th><th>ผู้รับ</th><th class="no-print">จัดการ</th>
+              </tr></thead>
+              <tbody id="receive-tbody"><tr><td colspan="12" class="text-center py-6 text-gray-400">กำลังโหลด...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-3 no-print" id="batch-actions-rx" style="display:none!important">
+          <button class="btn-danger px-3 py-2 text-sm" onclick="deleteSelected('rx')"><i class="fas fa-trash mr-1"></i>ลบที่เลือก</button>
+        </div>
+      </div>
+
+      <div id="page-dispense" class="page-view" style="display:none">
+        <div class="flex gap-3 mb-4 flex-wrap no-print">
+          <button class="btn-primary px-4 py-2 text-sm" onclick="openSlidePanel('dispense','add')">
+            <i class="fas fa-hand-holding-medical mr-1"></i>เบิกจ่ายยา
+          </button>
+          <button class="btn-info px-4 py-2 text-sm" onclick="openMovePanel()">
+            <i class="fas fa-exchange-alt mr-1"></i>ย้ายยาไปคลังนอก (+6 เดือน)
+          </button>
+          <button class="btn-warning px-4 py-2 text-sm" onclick="openSlidePanel('return','add')">
+            <i class="fas fa-undo mr-1"></i>คืนยา
+          </button>
+          <button class="btn-danger px-4 py-2 text-sm" onclick="openSlidePanel('defect','add')">
+            <i class="fas fa-times-circle mr-1"></i>แจ้งชำรุด/หมดอายุ
+          </button>
+        </div>
+        <div class="flex gap-2 mb-4 flex-wrap no-print">
+          <input id="tx-out-from" type="month" class="form-input text-sm" style="width:150px"/>
+          <input id="tx-out-to"   type="month" class="form-input text-sm" style="width:150px"/>
+          <select id="out-cat-filter" class="form-input text-sm" style="width:140px">
+            <option value="">ทุกหมวดหมู่</option>
+            <option>ยา</option><option>เวชภัณฑ์ยา</option><option>วัคซีน</option><option>วัสดุการแพทย์</option>
+          </select>
+          <button class="btn-primary px-3 py-2 text-sm" onclick="loadTransactions('dispense')"><i class="fas fa-filter mr-1"></i>กรอง</button>
+          <button class="btn-warning px-3 py-2 text-sm no-print" onclick="printDispenseReport()"><i class="fas fa-print mr-1"></i>พิมพ์</button>
+          <button class="btn-success px-3 py-2 text-sm no-print" onclick="exportCSV('dispense')"><i class="fas fa-file-csv mr-1"></i>CSV</button>
+          <button class="btn-success px-3 py-2 text-sm no-print" onclick="exportExcel('dispense')"><i class="fas fa-file-excel mr-1"></i>Excel</button>
+        </div>
+        <div class="neu p-0 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="data-table">
+              <thead><tr><th><input type="checkbox" id="chk-all-out" onchange="toggleCheckAll('out')"/></th>
+                <th>วันที่</th><th>ประเภท</th><th>ชื่อยา</th><th>Lot</th>
+                <th>จำนวน</th><th>หน่วย</th><th>คลัง</th><th>ผู้เบิก</th><th>หมายเหตุ</th><th class="no-print">จัดการ</th>
+              </tr></thead>
+              <tbody id="dispense-tbody"><tr><td colspan="11" class="text-center py-6 text-gray-400">กำลังโหลด...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="page-report" class="page-view" style="display:none">
+        <div class="flex gap-3 flex-wrap mb-4 no-print">
+          <select id="rpt-year" class="form-input text-sm" style="width:120px"></select>
+          <select id="rpt-month" class="form-input text-sm" style="width:140px">
+            <option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option>
+            <option value="3">มีนาคม</option><option value="4">เมษายน</option>
+            <option value="5">พฤษภาคม</option><option value="6">มิถุนายน</option>
+            <option value="7">กรกฎาคม</option><option value="8">สิงหาคม</option>
+            <option value="9">กันยายน</option><option value="10">ตุลาคม</option>
+            <option value="11">พฤศจิกายน</option><option value="12">ธันวาคม</option>
+          </select>
+          <select id="rpt-cat-filter" class="form-input text-sm" style="width:140px" onchange="filterReport()">
+            <option value="">ทุกหมวดหมู่</option>
+            <option>ยา</option><option>เวชภัณฑ์ยา</option><option>วัคซีน</option><option>วัสดุการแพทย์</option>
+          </select>
+          <button class="btn-primary px-4 py-2 text-sm" onclick="loadReport()"><i class="fas fa-search mr-1"></i>ดูรายงาน</button>
+          <button class="btn-warning px-4 py-2 text-sm no-print" onclick="printReport()"><i class="fas fa-print mr-1"></i>พิมพ์</button>
+          <button class="btn-success px-4 py-2 text-sm no-print" onclick="exportCSV('report')"><i class="fas fa-file-csv mr-1"></i>CSV</button>
+          <button class="btn-success px-4 py-2 text-sm no-print" onclick="exportExcel('report')"><i class="fas fa-file-excel mr-1"></i>Excel</button>
+        </div>
+        <div class="print-header mb-3" id="rpt-print-header"></div>
+        <div class="neu p-0 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="data-table">
+              <thead><tr>
+                <th>รหัส 13 หลัก</th><th>ชื่อยา</th><th>หมวด</th><th>หน่วย</th>
+                <th>รับเข้า</th><th>จ่ายออก</th><th>คืน</th><th>ชำรุด</th>
+                <th>คงเหลือ (รวม)</th><th>มูลค่ารับ</th><th>มูลค่าจ่าย</th>
+              </tr></thead>
+              <tbody id="report-tbody"><tr><td colspan="11" class="text-center py-6 text-gray-400">เลือกเดือนและกดดูรายงาน</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4" id="rpt-summary" style="display:none">
+          <div class="neu p-3 text-center"><div class="text-2xl font-bold text-blue-500" id="rpt-total-in">0</div><div class="text-xs text-gray-500">รับรวม</div></div>
+          <div class="neu p-3 text-center"><div class="text-2xl font-bold text-pink-500" id="rpt-total-out">0</div><div class="text-xs text-gray-500">จ่ายรวม</div></div>
+          <div class="neu p-3 text-center"><div class="text-2xl font-bold text-green-500" id="rpt-val-in">฿0</div><div class="text-xs text-gray-500">มูลค่ารับ</div></div>
+          <div class="neu p-3 text-center"><div class="text-2xl font-bold text-orange-500" id="rpt-val-out">฿0</div><div class="text-xs text-gray-500">มูลค่าจ่าย</div></div>
+        </div>
+      </div>
+
+      <div id="page-forecast" class="page-view" style="display:none">
+        <div class="flex gap-3 flex-wrap mb-4 no-print">
+          <select id="fc-cat-filter" class="form-input text-sm" style="width:140px" onchange="filterForecast()">
+            <option value="">ทุกหมวดหมู่</option>
+            <option>ยา</option><option>เวชภัณฑ์ยา</option><option>วัคซีน</option><option>วัสดุการแพทย์</option>
+          </select>
+          <button class="btn-primary px-4 py-2 text-sm" onclick="loadForecast()"><i class="fas fa-calculator mr-1"></i>คำนวณ</button>
+          <button class="btn-warning px-4 py-2 text-sm no-print" onclick="printForecast()"><i class="fas fa-print mr-1"></i>พิมพ์แบบฟอร์มเบิก</button>
+          <button class="btn-success px-4 py-2 text-sm no-print" onclick="exportForecastExcel()"><i class="fas fa-file-excel mr-1"></i>Excel</button>
+        </div>
+        <div class="neu p-3 mb-4 text-sm text-gray-600"><i class="fas fa-info-circle mr-2 text-blue-400"></i>คำนวณจากค่าเฉลี่ยการเบิก 3 เดือนย้อนหลัง ประมาณการให้มีสต๊อก 2 เดือน</div>
+        <div class="neu p-0 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="data-table" id="forecast-table">
+              <thead><tr>
+                <th>รหัส 13 หลัก</th><th>ชื่อยา</th><th>หน่วย</th><th>ราคา/หน่วย</th>
+                <th>จำนวน/กล่อง</th><th>คงเหลือ</th><th>เบิก 3 เดือน (เฉลี่ย)</th>
+                <th>เป้า 2 เดือน</th><th>ต้องเบิก (หน่วย)</th><th>เบิก (กล่อง)</th>
+              </tr></thead>
+              <tbody id="forecast-tbody"><tr><td colspan="10" class="text-center py-6 text-gray-400">กดปุ่ม "คำนวณ" เพื่อดูผล</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="page-manual" class="page-view" style="display:none">
+        <div class="neu p-6 md:p-8 max-w-5xl mx-auto space-y-8">
+          
+          <div class="border-b border-gray-200 pb-6">
+            <h2 class="text-2xl md:text-3xl font-bold text-blue-600 mb-2"><i class="fas fa-book-open mr-3"></i>คู่มือการใช้งานระบบคลังยา รพ.สต.หนองสองห้อง</h2>
+            <p class="text-gray-500 font-medium">(สำหรับเจ้าหน้าที่ผู้ใช้งานทั่วไป - User)</p>
+            <div class="mt-4 bg-blue-50 border border-blue-100 p-4 rounded-xl text-blue-800 flex items-start gap-3">
+              <i class="fas fa-info-circle mt-1 text-blue-500"></i>
+              <p>ระบบนี้ถูกออกแบบมาเพื่อช่วยลดภาระงานเอกสาร แจ้งเตือนยาใกล้หมดอายุ และคำนวณการเบิกยาอัตโนมัติ</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-3">
+              <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                <span class="bg-blue-100 text-blue-600 w-8 h-8 flex items-center justify-center rounded-lg">1</span> 
+                การเข้าสู่ระบบ (Login)
+              </h3>
+              <ul class="list-none space-y-2 text-gray-600 ml-10">
+                <li class="relative before:content-[''] before:absolute before:w-2 before:h-2 before:bg-blue-400 before:rounded-full before:left--4 before:top-2 pl-4"><span class="font-medium text-gray-700">เปิดหน้าเว็บ</span> ระบบคลังยาผ่านเบราว์เซอร์ (แนะนำ Google Chrome)</li>
+                <li class="relative before:content-[''] before:absolute before:w-2 before:h-2 before:bg-blue-400 before:rounded-full before:left--4 before:top-2 pl-4"><span class="font-medium text-gray-700">กรอก ชื่อผู้ใช้ และ รหัสผ่าน</span> ที่ได้รับจากผู้ดูแลระบบ</li>
+                <li class="relative before:content-[''] before:absolute before:w-2 before:h-2 before:bg-blue-400 before:rounded-full before:left--4 before:top-2 pl-4"><span class="font-medium text-gray-700">กดปุ่ม</span> "เข้าสู่ระบบ"</li>
+              </ul>
+            </div>
+
+            <div class="space-y-3">
+              <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                <span class="bg-blue-100 text-blue-600 w-8 h-8 flex items-center justify-center rounded-lg">2</span> 
+                หน้าแดชบอร์ด (Dashboard)
+              </h3>
+              <p class="text-sm text-gray-500 ml-10">เมื่อเข้าสู่ระบบ หน้าแรกที่พบคือ แดชบอร์ด ซึ่งจะแสดงข้อมูลสำคัญดังนี้:</p>
+              <ul class="list-none space-y-2 text-gray-600 ml-10">
+                <li class="relative before:content-[''] before:absolute before:w-2 before:h-2 before:bg-pink-400 before:rounded-full before:left--4 before:top-2 pl-4"><strong class="text-gray-700">กล่องสถิติด้านบน:</strong> แสดงจำนวนยาทั้งหมด, รายการยาใกล้หมดอายุ (ภายใน 30 วัน), รายการยาที่สต๊อกต่ำกว่าเกณฑ์, ยอดรับเข้าและจ่ายออก</li>
+                <li class="relative before:content-[''] before:absolute before:w-2 before:h-2 before:bg-pink-400 before:rounded-full before:left--4 before:top-2 pl-4"><strong class="text-gray-700">กราฟสต๊อกแยกหมวดหมู่:</strong> สามารถคลิกที่แท่งกราฟเพื่อกรองดูตารางยาด้านล่างเฉพาะหมวดหมู่นั้นๆ ได้</li>
+                <li class="relative before:content-[''] before:absolute before:w-2 before:h-2 before:bg-pink-400 before:rounded-full before:left--4 before:top-2 pl-4"><strong class="text-gray-700">ตารางยาใกล้หมดอายุ และ สต๊อกต่ำ:</strong> ระบบจะดึงรายการที่ต้องเฝ้าระวังมาแสดงให้เห็นทันที สามารถกด "พิมพ์" หรือ "คำนวณเบิก" ได้</li>
+              </ul>
+            </div>
+
+            <div class="space-y-3">
+              <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                <span class="bg-blue-100 text-blue-600 w-8 h-8 flex items-center justify-center rounded-lg">3</span> 
+                เมนู "คลังยา" (การตรวจสอบยอด)
+              </h3>
+              <p class="text-sm text-gray-500 ml-10">ใช้สำหรับค้นหาและดูรายละเอียดของยาทั้งหมดในระบบ</p>
+              <ul class="list-none space-y-2 text-gray-600 ml-10">
+                <li class="relative before:content-[''] before:absolute before:w-2 before:h-2 before:bg-green-400 before:rounded-full before:left--4 before:top-2 pl-4"><strong class="text-gray-700">การค้นหา:</strong> พิมพ์ชื่อยา (ไทย/อังกฤษ) หรือ รหัส 13 หลัก ลงในช่องค้นหา หรือเลือกกรองตามหมวดหมู่</li>
+                <li class="relative before:content-[''] before:absolute before:w-2 before:h-2 before:bg-green-400 before:rounded-full before:left--4 before:top-2 pl-4"><strong class="text-gray-700">ข้อมูลที่แสดง:</strong> เห็นยอดคงเหลือแยกเป็น "คลังใน" (สต๊อกหลัก) และ "คลังนอก" (จุดจ่ายยา) รวมถึงยอดรวม และราคาต่อหน่วย</li>
+              </ul>
+            </div>
+
+            <div class="space-y-3">
+              <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                <span class="bg-blue-100 text-blue-600 w-8 h-8 flex items-center justify-center rounded-lg">4</span> 
+                เมนู "รับยาเข้าคลัง"
+              </h3>
+              <p class="text-sm text-gray-500 ml-10">ใช้เมื่อเบิกยามาจาก อบจ. หรือมียามาส่งที่ รพ.สต.</p>
+              <ul class="list-none space-y-2 text-gray-600 ml-10">
+                <li class="pl-4 border-l-2 border-gray-200">ไปที่เมนู รับยาเข้าคลัง > กดปุ่ม <strong class="text-blue-500">"➕ รับยาเข้าคลัง"</strong></li>
+                <li class="pl-4 border-l-2 border-gray-200"><strong class="text-gray-700">เลือกยา:</strong> ค้นหาและเลือกรายการยาจากดรอปดาวน์</li>
+                <li class="pl-4 border-l-2 border-gray-200"><strong class="text-gray-700">คลังที่ทำรายการ:</strong> ระบบจะตั้งค่าเริ่มต้นเป็น "คลังใน"</li>
+                <li class="pl-4 border-l-2 border-gray-200"><strong class="text-gray-700">กรอกข้อมูลสำคัญ:</strong>
+                  <ul class="list-disc list-inside mt-1 ml-2 text-sm">
+                    <li><strong class="text-red-500">*</strong> Lot: ระบุเลขล็อตของยา</li>
+                    <li>วันหมดอายุ: ระบุวันหมดอายุ (ปี พ.ศ.)</li>
+                    <li>จำนวน: ใส่จำนวนที่รับเข้า</li>
+                    <li>ผู้รับ: ใส่ชื่อเจ้าหน้าที่ผู้ตรวจรับ</li>
+                  </ul>
+                </li>
+                <li class="pl-4 border-l-2 border-gray-200">กดปุ่ม <strong class="text-green-500">"บันทึก"</strong> (ระบบจะส่งแจ้งเตือนเข้าไลน์กลุ่มอัตโนมัติ)</li>
+              </ul>
+            </div>
+          </div>
+
+          <hr class="border-gray-200 my-6" />
+
+          <div class="space-y-4">
+            <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+              <span class="bg-blue-100 text-blue-600 w-8 h-8 flex items-center justify-center rounded-lg">5</span> 
+              เมนู "เบิกจ่ายยา" (การตัดสต๊อกรายวัน)
+            </h3>
+            <p class="text-sm text-gray-500 ml-10">เมนูนี้ใช้สำหรับจัดการนำยาออกจากคลัง โดยมี 4 ปุ่มหลักการใช้งาน:</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 ml-10">
+              <div class="bg-white border border-gray-200 p-4 rounded-xl shadow-sm">
+                <div class="font-bold text-blue-600 mb-2"><i class="fas fa-hand-holding-medical mr-2"></i>ปุ่ม "เบิกจ่ายยา"</div>
+                <p class="text-sm text-gray-600">(จ่ายยาให้คนไข้) ใช้ตัดสต๊อกเมื่อจ่ายยาออกไป เลือกยา > เลือกคลังที่ตัด > ใส่จำนวน > กดบันทึก</p>
+              </div>
+              <div class="bg-white border border-gray-200 p-4 rounded-xl shadow-sm">
+                <div class="font-bold text-purple-600 mb-2"><i class="fas fa-exchange-alt mr-2"></i>ปุ่ม "ย้ายยาไปคลังนอก (+6 เดือน)"</div>
+                <p class="text-sm text-gray-600">(สำหรับงานจัดซอง) ตัดยอดคลังใน ย้ายไปเพิ่มในคลังนอก และตั้งค่าวันหมดอายุให้ใหม่เป็น +6 เดือน อัตโนมัติ</p>
+              </div>
+              <div class="bg-white border border-gray-200 p-4 rounded-xl shadow-sm">
+                <div class="font-bold text-orange-500 mb-2"><i class="fas fa-undo mr-2"></i>ปุ่ม "คืนยา"</div>
+                <p class="text-sm text-gray-600">ใช้เมื่อมีการนำยามาคืนเข้าสต๊อก สามารถเลือระบุสภาพสินค้าที่คืน "สมบูรณ์" หรือ "ชำรุด"</p>
+              </div>
+              <div class="bg-white border border-gray-200 p-4 rounded-xl shadow-sm">
+                <div class="font-bold text-red-500 mb-2"><i class="fas fa-times-circle mr-2"></i>ปุ่ม "แจ้งชำรุด/หมดอายุ"</div>
+                <p class="text-sm text-gray-600">ใช้ตัดสต๊อกยาทิ้งกรณียาเสื่อมสภาพ แตกหัก หรือหมดอายุ โดยระบุ "อาการชำรุด/เหตุผล" ประกอบ</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+            <div class="space-y-3">
+              <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                <span class="bg-blue-100 text-blue-600 w-8 h-8 flex items-center justify-center rounded-lg">6</span> 
+                เมนู "รายงาน" (สรุปประจำเดือน)
+              </h3>
+              <ul class="list-none space-y-2 text-gray-600 ml-10">
+                <li class="relative before:content-[''] before:absolute before:w-2 before:h-2 before:bg-indigo-400 before:rounded-full before:left--4 before:top-2 pl-4"><strong class="text-gray-700">เลือก</strong> ปี พ.ศ. และ เดือน ที่ต้องการดู > กดปุ่ม "ดูรายงาน"</li>
+                <li class="relative before:content-[''] before:absolute before:w-2 before:h-2 before:bg-indigo-400 before:rounded-full before:left--4 before:top-2 pl-4"><strong class="text-gray-700">แสดงผล:</strong> ยอด รับเข้า, จ่ายออก, คืน, ชำรุด และมูลค่ารวมของเดือนนั้นๆ</li>
+                <li class="relative before:content-[''] before:absolute before:w-2 before:h-2 before:bg-indigo-400 before:rounded-full before:left--4 before:top-2 pl-4"><strong class="text-gray-700">ส่งออก:</strong> กดปุ่ม "CSV" หรือ "Excel" โหลดไฟล์จัดหน้าพิมพ์ส่งได้ทันที</li>
+              </ul>
+            </div>
+
+            <div class="space-y-3">
+              <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                <span class="bg-blue-100 text-blue-600 w-8 h-8 flex items-center justify-center rounded-lg">7</span> 
+                เมนู "คำนวณเบิกเดือนหน้า"
+              </h3>
+              <p class="text-sm text-gray-500 ml-10">ช่วยคำนวณให้ว่าเดือนถัดไปควรเบิกยาอะไร จำนวนเท่าไหร่</p>
+              <ul class="list-none space-y-2 text-gray-600 ml-10">
+                <li class="relative before:content-[''] before:absolute before:w-2 before:h-2 before:bg-teal-400 before:rounded-full before:left--4 before:top-2 pl-4">กดปุ่ม <strong class="text-gray-700">"คำนวณ"</strong> ระบบจะดึงยอดเบิกจ่าย 3 เดือนย้อนหลังมาหาค่าเฉลี่ย</li>
+                <li class="relative before:content-[''] before:absolute before:w-2 before:h-2 before:bg-teal-400 before:rounded-full before:left--4 before:top-2 pl-4">ระบบคำนวณเป้าหมายสต๊อกสำหรับ 2 เดือน แสดงผลเป็น "ต้องเบิก(หน่วย)" และแปลงเป็น "เบิก(กล่อง)"</li>
+                <li class="relative before:content-[''] before:absolute before:w-2 before:h-2 before:bg-teal-400 before:rounded-full before:left--4 before:top-2 pl-4">กดพิมพ์แบบฟอร์มเบิก หรือโหลดเป็น Excel ไปใช้งานได้เลย</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="bg-yellow-50 border border-yellow-200 p-5 rounded-xl mt-8">
+            <h4 class="font-bold text-yellow-800 mb-3 flex items-center gap-2"><i class="fas fa-lightbulb text-yellow-500"></i> ข้อแนะนำเพิ่มเติมสำหรับการบันทึกข้อมูล</h4>
+            <ul class="list-disc list-inside text-yellow-800 space-y-2 text-sm ml-2">
+              <li><strong class="font-semibold">รหัสยา:</strong> ให้ใช้ รหัส 13 หลัก ที่เป็นมาตรฐานในการกรอกข้อมูลทุกครั้ง เพื่อความแม่นยำในการดึงรายงาน</li>
+              <li><strong class="font-semibold">วันที่:</strong> ตรวจสอบการกรอกวันที่ในแบบฟอร์มต่างๆ ให้เป็น ปี พ.ศ. เสมอ</li>
+              <li><strong class="font-semibold">รูปภาพ:</strong> ระบบเปิดให้กลับมาอัพโหลดรูปภาพลงคลังยาได้อีกครั้งครับ</li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+
+    </div><div class="text-center text-xs text-gray-400 py-3 border-t" style="border-color:var(--border)" id="app-footer">
+      <span id="footer-credit">Credit By Ritwet_hospital_DrugStock</span> |
+      <a href="http://www.prunaihealth.com/dose/" target="_blank" class="text-blue-400 hover:underline"><i class="fas fa-calculator mr-1"></i>คำนวณยา</a>
+    </div>
+  </div></div>
+
+<div id="panel-medicine" class="slide-panel">
+  <div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-lg font-bold" id="panel-medicine-title">เพิ่มรายการยา</h2>
+      <button onclick="closeSlidePanel('medicine')" class="neu-btn p-2 text-gray-500"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="med-id"/>
+    <div class="grid grid-cols-1 gap-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="form-label">รหัสยา 13 หลัก</label><input id="med-code13" class="form-input" maxlength="13" placeholder="0000000000000"/></div>
+        <div><label class="form-label">หมวดหมู่ <span class="text-red-400">*</span></label>
+          <select id="med-category" class="form-input">
+            <option>ยา</option><option>เวชภัณฑ์ยา</option><option>วัคซีน</option><option>วัสดุการแพทย์</option><option>อื่นๆ</option>
+          </select></div>
+      </div>
+      <div><label class="form-label">ชื่อยา (ภาษาไทย) <span class="text-red-400">*</span></label><input id="med-nameTH" class="form-input" placeholder="ชื่อยาภาษาไทย"/></div>
+      <div><label class="form-label">ชื่อยา (ภาษาอังกฤษ)</label><input id="med-nameEN" class="form-input" placeholder="Drug name in English"/></div>
+      <div class="grid grid-cols-3 gap-3">
+        <div><label class="form-label">หน่วยนับ</label>
+          <select id="med-unit" class="form-input">
+            <option>เม็ด</option><option>แคปซูล</option><option>ขวด</option><option>หลอด</option>
+            <option>ซอง</option><option>กล่อง</option><option>ชิ้น</option><option>แผง</option>
+            <option>มล.</option><option>cc</option><option>dose</option><option>อื่นๆ</option>
+          </select></div>
+        <div><label class="form-label">ราคา/หน่วย (บาท)</label><input id="med-price" class="form-input" type="number" step="0.01" min="0"/></div>
+        <div><label class="form-label">จำนวน/กล่อง</label><input id="med-unitPerBox" class="form-input" type="number" min="1" value="1"/></div>
+      </div>
+      <div><label class="form-label">สต๊อกขั้นต่ำ</label><input id="med-minStock" class="form-input" type="number" min="0" value="0"/></div>
+      <div><label class="form-label">รายละเอียด/หมายเหตุ</label><textarea id="med-desc" class="form-input" rows="2"></textarea></div>
+      
+      <div class="p-3 bg-gray-50 border rounded-xl">
+        <label class="form-label"><i class="fas fa-image mr-1"></i>รูปภาพยา 1</label>
+        <input type="file" id="med-img1" accept="image/*" class="form-input text-sm" onchange="previewImg(this,'prev1')"/>
+        <img id="prev1" style="display:none;max-height:100px;margin-top:6px;border-radius:8px;object-fit:contain;background:#fff;"/>
+      </div>
+      <div class="p-3 bg-gray-50 border rounded-xl">
+        <label class="form-label"><i class="fas fa-image mr-1"></i>รูปภาพยา 2 (ตัวเลือกเสริม)</label>
+        <input type="file" id="med-img2" accept="image/*" class="form-input text-sm" onchange="previewImg(this,'prev2')"/>
+        <img id="prev2" style="display:none;max-height:100px;margin-top:6px;border-radius:8px;object-fit:contain;background:#fff;"/>
+      </div>
+      
+      <div class="flex gap-3 mt-2">
+        <button class="btn-primary flex-1 py-3 font-semibold" onclick="saveMedicine()"><i class="fas fa-save mr-2"></i>บันทึก</button>
+        <button class="neu-btn flex-1 py-3 text-gray-600" onclick="closeSlidePanel('medicine')">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="panel-transaction" class="slide-panel">
+  <div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-lg font-bold" id="panel-tx-title">รับยาเข้าคลัง</h2>
+      <button onclick="closeSlidePanel('transaction')" class="neu-btn p-2 text-gray-500"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="tx-id"/>
+    <input type="hidden" id="tx-type"/>
+    <div id="tx-user-banner" class="flex items-center gap-3 p-3 rounded-xl bg-blue-50 mb-4 border border-blue-100">
+      <div id="tx-user-avatar-sm" class="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0"></div>
+      <div><div id="tx-user-name" class="font-semibold text-sm"></div><div id="tx-user-role-sm" class="text-xs text-gray-500"></div></div>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="form-label">เลือกยา <span class="text-red-400">*</span></label>
+        <select id="tx-medicine" class="form-input" onchange="onMedSelect(this)">
+          <option value="">-- เลือกรายการยา --</option>
+        </select>
+      </div>
+      <div id="tx-loc-wrapper">
+        <label class="form-label">คลังที่ทำรายการ <span class="text-red-400">*</span></label>
+        <select id="tx-location" class="form-input">
+          <option value="คลังใน">คลังใน (Main Stock)</option>
+          <option value="คลังนอก">คลังนอก (Dispense Stock)</option>
+        </select>
+      </div>
+      <div id="tx-stock-info" class="p-3 rounded-xl bg-blue-50 text-sm text-blue-700 border border-blue-200" style="display:none">
+        <i class="fas fa-info-circle mr-1"></i>สต๊อกคงเหลือคลังนี้: <strong id="tx-current-stock">0</strong> <span id="tx-unit-show"></span>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="form-label">Lot</label><input id="tx-lot" class="form-input" placeholder="เลข Lot"/></div>
+        <div><label class="form-label">วันหมดอายุ</label><input id="tx-exp" class="form-input" type="date"/></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="form-label">จำนวน <span class="text-red-400">*</span></label><input id="tx-qty" class="form-input" type="number" min="1" placeholder="0"/></div>
+        <div><label class="form-label">วันที่</label><input id="tx-date" class="form-input" type="date"/></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="form-label">ราคา/หน่วย</label><input id="tx-price" class="form-input" type="number" step="0.01" min="0"/></div>
+        <div><label class="form-label">รวม</label><input id="tx-total" class="form-input" readonly style="background:#f8fafc"/></div>
+      </div>
+      <div id="tx-field-request"><label class="form-label">ผู้เบิก/ผู้ขอ</label><input id="tx-requestBy" class="form-input" placeholder="ชื่อผู้เบิก"/></div>
+      <div id="tx-field-receive"><label class="form-label">ผู้รับ</label><input id="tx-receivedBy" class="form-input" placeholder="ชื่อผู้รับ"/></div>
+      <div id="tx-field-condition" style="display:none">
+        <label class="form-label">สภาพสินค้าที่คืน</label>
+        <select id="tx-condition" class="form-input">
+          <option value="good">สมบูรณ์</option><option value="defect">ชำรุด</option>
+        </select>
+      </div>
+      <div id="tx-field-defect" style="display:none">
+        <label class="form-label">อาการชำรุด/เหตุผล</label>
+        <input id="tx-defectType" class="form-input" placeholder="ระบุอาการหรือเหตุผล"/>
+      </div>
+      <div><label class="form-label">หมายเหตุ</label><textarea id="tx-note" class="form-input" rows="2"></textarea></div>
+      
+      <div id="tx-field-image" style="display:none !important">
+        <label class="form-label">รูปภาพแนบ</label>
+        <input type="file" id="tx-img" accept="image/*" class="form-input text-sm" onchange="previewImg(this,'tx-prev')"/>
+        <img id="tx-prev" style="display:none;max-height:100px;margin-top:6px;border-radius:8px;object-fit:contain;background:#fff;"/>
+      </div>
+
+      <div class="flex gap-3 mt-2">
+        <button class="btn-primary flex-1 py-3 font-semibold" onclick="saveTransaction()">
+          <i class="fas fa-save mr-2"></i>บันทึก
+        </button>
+        <button class="neu-btn flex-1 py-3 text-gray-600" onclick="closeSlidePanel('transaction')">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="panel-move" class="slide-panel">
+  <div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-lg font-bold text-purple-600"><i class="fas fa-exchange-alt mr-2"></i>ย้ายยาไปคลังนอก (จัดซอง)</h2>
+      <button onclick="closeSlidePanel('move')" class="neu-btn p-2 text-gray-500"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="p-3 bg-purple-50 rounded-xl text-sm text-purple-700 border border-purple-200 mb-4">
+      <i class="fas fa-info-circle mr-1"></i> ระบบจะตัดสต๊อกคลังใน และเพิ่มสต๊อกคลังนอก โดยตั้งวันหมดอายุให้เป็น <b>+6 เดือน</b> อัตโนมัติ
+    </div>
+    <div class="space-y-4">
+  <div><label class="form-label">เลือกยา <span class="text-red-400">*</span></label>
+    <select id="move-medicine" class="form-input" onchange="onMoveMedSelect(this)"></select>
+  </div>
+  
+  <div class="grid grid-cols-2 gap-3 mt-2 mb-2">
+    <div><label class="form-label">Lot (คลังใน)</label><input id="move-lot" class="form-input" placeholder="ระบบช่วยเลือกอัตโนมัติ" readonly style="background:#f8fafc"/></div>
+    <div><label class="form-label">วันหมดอายุเดิม</label><input id="move-exp" class="form-input" type="date" readonly style="background:#f8fafc"/></div>
+  </div>
+
+  <div><label class="form-label">จำนวนที่ย้ายไปคลังนอก <span class="text-red-400">*</span></label><input id="move-qty" type="number" class="form-input" min="1"/></div>
+  <div><label class="form-label">หมายเหตุ</label><input id="move-note" class="form-input" placeholder="เช่น จัดซองเตรียมจ่าย"/></div>
+</div>
+    <div class="flex gap-3 mt-6">
+      <button class="btn-primary flex-1 py-3 font-semibold" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);" onclick="submitMoveToOuter()">
+        <i class="fas fa-check mr-2"></i>ยืนยันการย้าย
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="panel-user" class="slide-panel">
+  <div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-lg font-bold" id="panel-user-title">เพิ่มผู้ใช้</h2>
+      <button onclick="closeSlidePanel('user')" class="neu-btn p-2 text-gray-500"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="user-id"/>
+    <div class="space-y-4">
+      <div><label class="form-label">ชื่อผู้ใช้ (Username) <span class="text-red-400">*</span></label><input id="user-username" class="form-input"/></div>
+      <div><label class="form-label">รหัสผ่าน <span class="text-red-400">*</span></label><input id="user-password" class="form-input" type="password"/></div>
+      <div><label class="form-label">ชื่อ-นามสกุล <span class="text-red-400">*</span></label><input id="user-name" class="form-input"/></div>
+      <div><label class="form-label">สิทธิ์การใช้งาน</label>
+        <select id="user-role" class="form-input">
+          <option value="user">User (ผู้ใช้ทั่วไป)</option>
+          <option value="admin">Admin (ผู้ดูแลระบบ)</option>
+        </select></div>
+      <div><label class="form-label">เบอร์โทรศัพท์</label><input id="user-phone" class="form-input" type="tel"/></div>
+      <div><label class="form-label">อีเมล</label><input id="user-email" class="form-input" type="email"/></div>
+      
+      <div class="p-3 bg-gray-50 border rounded-xl">
+        <label class="form-label"><i class="fas fa-user-circle mr-1"></i>รูปโปรไฟล์</label>
+        <input type="file" id="user-img" accept="image/*" class="form-input text-sm" onchange="previewImg(this,'user-prev')"/>
+        <img id="user-prev" style="display:none;max-height:100px;width:100px;margin-top:8px;border-radius:50%;object-fit:cover;background:#fff;border:2px solid #4facfe;"/>
+      </div>
+      
+      <div class="flex gap-3 mt-2">
+        <button class="btn-primary flex-1 py-3 font-semibold" onclick="saveUser()"><i class="fas fa-save mr-2"></i>บันทึก</button>
+        <button class="neu-btn flex-1 py-3 text-gray-600" onclick="closeSlidePanel('user')">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="panel-ocr" class="slide-panel">
+  <div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-lg font-bold"><i class="fas fa-camera mr-2 text-blue-400"></i>อ่านรายการยาจากภาพ (OCR)</h2>
+      <button onclick="document.getElementById('panel-ocr').classList.remove('open')" class="neu-btn p-2 text-gray-500"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="space-y-4">
+      <div class="p-3 bg-blue-50 rounded-xl text-sm text-blue-700 border border-blue-200">
+        <i class="fas fa-info-circle mr-1"></i>ต้องตั้งค่า Gemini API Key ใน Settings ก่อนใช้งาน
+      </div>
+      <div>
+        <label class="form-label">เลือกภาพใบเบิกยา</label>
+        <input type="file" id="ocr-img" accept="image/*" class="form-input text-sm" onchange="previewImg(this,'ocr-prev')"/>
+        <img id="ocr-prev" style="display:none;max-height:200px;margin-top:8px;border-radius:12px;width:100%;object-fit:contain"/>
+      </div>
+      <button class="btn-primary w-full py-3 font-semibold" onclick="doOCR()"><i class="fas fa-magic mr-2"></i>อ่านข้อมูลอัตโนมัติ</button>
+      <div id="ocr-result" style="display:none">
+        <div class="font-semibold text-sm mb-2">ผลการอ่าน (สามารถแก้ไขก่อนบันทึก)</div>
+        <div id="ocr-table-wrap" class="overflow-x-auto"></div>
+        <div class="flex gap-3 mt-3">
+          <input id="ocr-rx-date" type="date" class="form-input text-sm flex-1" placeholder="วันที่รับ"/>
+          <input id="ocr-rx-by" class="form-input text-sm flex-1" placeholder="ผู้รับ"/>
+        </div>
+        <button class="btn-success w-full py-3 mt-3 font-semibold" onclick="saveOCRItems()"><i class="fas fa-save mr-2"></i>บันทึกรายการทั้งหมด</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="confirm-modal" style="display:none" class="modal-bg">
+  <div class="modal-box text-center">
+    <div class="text-5xl mb-4">⚠️</div>
+    <div id="confirm-msg" class="font-semibold mb-2">ยืนยันการดำเนินการ?</div>
+    <div id="confirm-sub" class="text-sm text-gray-500 mb-6"></div>
+    <div class="flex gap-3">
+      <button id="confirm-yes" class="btn-danger flex-1 py-3">ยืนยัน</button>
+      <button class="neu-btn flex-1 py-3 text-gray-600" onclick="closeConfirm()">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<div id="img-modal" style="display:none; z-index:99;" class="modal-bg" onclick="document.getElementById('img-modal').style.display='none'">
+  <img id="img-modal-src" style="max-width:90vw;max-height:90vh;border-radius:12px"/>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
